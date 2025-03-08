@@ -11,6 +11,11 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMoni
 from wrappers import RewardClipper
 
 
+def set_seed(seed=0):
+    if seed > 0:
+        np.random.seed(seed)
+
+
 def moving_average(values, window):
     weights = np.repeat(1.0, window) / window
     return np.convolve(values, weights, "valid")
@@ -38,6 +43,7 @@ stackFrames = 4
 clippedReward = True
 initial_lr = 2.5e-4
 
+set_seed(0)
 env = gym.make("CarRacing-v3", render_mode="human")
 if clippedReward:
     env = RewardClipper(env, top_clip=1.0)
@@ -60,7 +66,9 @@ model = PPO(
     * progress_remaining,  # annealing schedule for the lr
     clip_range=0.1,
     ent_coef=0.01,
+    seed=0,
 )
+
 model.learn(total_timesteps=training_steps, callback=callback)
 plot_results(log_dir, training_steps)
 model.save(
