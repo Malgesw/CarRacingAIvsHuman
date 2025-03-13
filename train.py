@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMonitor
 
-from wrappers import RewardClipper
+from wrappers import RewardClipper, AccBrakeMerger, GrayCropWrapper
 
 
 def set_seed(seed=0):
@@ -25,7 +25,7 @@ def plot_results(log_folder, steps, title="Learning Curve"):
     x, y = ts2xy(load_results(log_folder), "timesteps")
     y = moving_average(y, window=50)
     # Truncate x
-    x = x[len(x) - len(y) :]
+    x = x[len(x) - len(y):]
 
     fig = plt.figure(title)
     plt.plot(x[x <= steps], y[x <= steps])
@@ -38,15 +38,20 @@ def plot_results(log_folder, steps, title="Learning Curve"):
 
 log_dir = "./logs"
 os.makedirs(log_dir, exist_ok=True)
-training_steps = 5000000
+training_steps = 10000000
 stackFrames = 4
-clippedReward = True
-initial_lr = 2.5e-4
+clippedReward = False
+# initial_lr = 2.5e-4
+initial_lr = 3e-4
+mergedAccBrake = False
 
 set_seed(0)
-env = gym.make("CarRacing-v3", render_mode="human")
+env = gym.make("CarRacing-v3", render_mode="rgb_array")
 if clippedReward:
     env = RewardClipper(env, top_clip=1.0)
+if mergedAccBrake:
+    env = AccBrakeMerger(env)
+# env = GrayCropWrapper(env)
 env = DummyVecEnv([lambda: env])
 if stackFrames > 0:
     env = VecFrameStack(env, n_stack=stackFrames)
@@ -55,7 +60,8 @@ env = VecMonitor(env, log_dir)
 callback = CheckpointCallback(
     save_freq=1000000,
     save_path="./checkpoints",
-    name_prefix="PPOClipped{}StackedFrames{}".format(clippedReward, stackFrames),
+    name_prefix="PPOClipped{}StackedFrames{}mergedAccBrake{}".format(
+        clippedReward, stackFrames, mergedAccBrake),
 )
 
 model = PPO(
