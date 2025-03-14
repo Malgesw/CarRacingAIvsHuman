@@ -5,6 +5,7 @@ from multiprocessing import Event
 import gymnasium as gym
 import numpy as np
 import pygame
+import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMonitor
 
@@ -13,7 +14,8 @@ SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 WINDOW_WIDTH = 960
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# comment the following line if you don't run the code on GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 def set_window_position(x, y):
