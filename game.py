@@ -9,15 +9,15 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMonitor
 
 # from multiprocessing.synchronize import Event
-SCREEN_WIDTH = 1920  # Larghezza schermo totale
-SCREEN_HEIGHT = 1080  # Altezza schermo totale
-WINDOW_WIDTH = 960  # Meta larghezza schermo
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+WINDOW_WIDTH = 960
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 def set_window_position(x, y):
-    """Imposta la posizione della finestra SDL"""
+    """set the SDL windows' position"""
     os.environ["SDL_VIDEO_WINDOW_POS"] = f"{x},{y}"
 
 
@@ -40,7 +40,7 @@ def get_action(keys):
 def run_ai(user_started, user_end, user_reset, seed, name="AI"):
     np.random.seed(seed)
     set_window_position(WINDOW_WIDTH - 150, 0)
-    # Configurazione ambiente AI
+    # AI env configuration
     model_path = os.path.join(
         "checkpoints",
         "PPOClippedFalseStackedFrames4DiscreteFalseAccBrakeFalse_1000000_steps.zip",
@@ -83,10 +83,10 @@ def run_ai(user_started, user_end, user_reset, seed, name="AI"):
                 obs, reward, done, truncated = env.step(action)
 
                 if done and reward > 0:
-                    if counter < 1:
+                    if counter < 0:
                         counter = counter + 1
                         continue
-                    # Display endgame screen using Pygame
+                    # display endgame screen using Pygame
                     end_time = pygame.time.get_ticks()
                     font = pygame.font.SysFont("Arial", 48)
                     final_time = (end_time - starting_time) / 1000
@@ -95,9 +95,8 @@ def run_ai(user_started, user_end, user_reset, seed, name="AI"):
                         True,
                         (255, 255, 255),
                     )
-                    # Clear the screen (fill with black, for example)
+                    # clear the screen
                     env.unwrapped.screen.fill((0, 0, 0))
-                    # Center the text
                     text_rect = text_surface.get_rect(
                         center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2)
                     )
@@ -107,7 +106,7 @@ def run_ai(user_started, user_end, user_reset, seed, name="AI"):
 
             if maxreward_ia < reward:
                 maxreward_ia = reward
-                # Gestione eventi
+            # events handling
             if user_end.is_set():
                 running = False
             if user_reset.is_set():
@@ -129,7 +128,7 @@ def run_ai(user_started, user_end, user_reset, seed, name="AI"):
 def run_human(user_started, user_end, user_reset, seed, name="Human"):
     np.random.seed(seed)
     set_window_position(0, 0)
-    # Configurazione ambiente umano
+    # human env configuration
     env = gym.make(
         "CarRacing-v3",
         render_mode="human",
@@ -156,11 +155,11 @@ def run_human(user_started, user_end, user_reset, seed, name="Human"):
                 obs, reward, done, truncated, info = env.step(action)
 
             if done and reward > 0 and not endgame:
-                if counter < 1:
+                if counter < 0:
                     counter = counter + 1
                     obs, info = env.reset(seed=seed)
                     continue
-                # Display endgame screen using Pygame
+                # display endgame screen using Pygame
                 end_time = pygame.time.get_ticks()
                 final_time = (end_time - starting_time) / 1000
                 font = pygame.font.SysFont("Arial", 48)
@@ -169,9 +168,8 @@ def run_human(user_started, user_end, user_reset, seed, name="Human"):
                     True,
                     (255, 255, 255),
                 )
-                # Clear the screen (fill with black, for example)
+                # clear the screen
                 env.unwrapped.screen.fill((0, 0, 0))
-                # Center the text
                 text_rect = text_surface.get_rect(
                     center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2)
                 )
@@ -180,11 +178,11 @@ def run_human(user_started, user_end, user_reset, seed, name="Human"):
                 endgame = True
 
             if np.any(action != [0, 0, 0]) and first_action:
-                # Prima azione utente rilevata
+                # first human action detected
                 user_started.set()
                 first_action = False
                 starting_time = pygame.time.get_ticks()
-            # Gestione eventi
+            # events handling
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (
                     event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE

@@ -1,0 +1,6 @@
+python==3.10
+gymnasium
+swig
+stable_baselines3[box2D]
+numpy
+pygame
