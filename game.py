@@ -1,30 +1,31 @@
-
+import multiprocessing as mp
 import os
 from multiprocessing import Event
+
 import gymnasium as gym
+import numpy as np
+import pygame
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack, VecMonitor
-import pygame
-import numpy as np
-import multiprocessing as mp
+
 # from multiprocessing.synchronize import Event
 SCREEN_WIDTH = 1920  # Larghezza schermo totale
 SCREEN_HEIGHT = 1080  # Altezza schermo totale
-WINDOW_WIDTH = 960   # Meta larghezza schermo
+WINDOW_WIDTH = 960  # Meta larghezza schermo
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 def set_window_position(x, y):
     """Imposta la posizione della finestra SDL"""
-    os.environ['SDL_VIDEO_WINDOW_POS'] = f'{x},{y}'
+    os.environ["SDL_VIDEO_WINDOW_POS"] = f"{x},{y}"
 
 
 KEY_ACTIONS = {
     pygame.K_UP: np.array([0, 1, 0]),
     pygame.K_DOWN: np.array([0, 0, 0.8]),
     pygame.K_LEFT: np.array([-1, 0, 0]),
-    pygame.K_RIGHT: np.array([1, 0, 0])
+    pygame.K_RIGHT: np.array([1, 0, 0]),
 }
 
 
@@ -36,24 +37,29 @@ def get_action(keys):
     return np.clip(action, -1, 1)
 
 
-def run_ai(user_started, user_end, user_reset, seed, name="ai"):
+def run_ai(user_started, user_end, user_reset, seed, name="AI"):
     np.random.seed(seed)
-    set_window_position(WINDOW_WIDTH-150, 0)
+    set_window_position(WINDOW_WIDTH - 150, 0)
     # Configurazione ambiente AI
     model_path = os.path.join(
-        "checkpoints", "PPOClippedFalseStackedFrames4DiscreteFalseAccBrakeFalse_1000000_steps.zip")
+        "checkpoints",
+        "PPOClippedFalseStackedFrames4DiscreteFalseAccBrakeFalse_1000000_steps.zip",
+    )
     log_dir = "./logs"
     os.makedirs(log_dir, exist_ok=True)
     pygame.init()
-    env = gym.make("CarRacing-v3", render_mode="human",
-                   max_episode_steps=10000, lap_complete_percent=0.95)
+    env = gym.make(
+        "CarRacing-v3",
+        render_mode="human",
+        max_episode_steps=10000,
+        lap_complete_percent=0.95,
+    )
     _, _ = env.reset(seed=seed)
     env = DummyVecEnv([lambda: env])
     env = VecFrameStack(env, n_stack=4)
     env = VecMonitor(env, log_dir)
     env.unwrapped.screen = pygame.display.set_mode(
-        (WINDOW_WIDTH, SCREEN_HEIGHT),
-        pygame.HWSURFACE | pygame.DOUBLEBUF
+        (WINDOW_WIDTH, SCREEN_HEIGHT), pygame.HWSURFACE | pygame.DOUBLEBUF
     )
     model = PPO.load(model_path, env)
 
@@ -64,10 +70,15 @@ def run_ai(user_started, user_end, user_reset, seed, name="ai"):
     reward = 0
     endgame = False
     counter = 0
+    time_set = False
+    starting_time = 0
     try:
         running = True
         while running:
             if user_started.is_set() and not endgame:
+                if not time_set:
+                    starting_time = pygame.time.get_ticks()
+                    time_set = True
                 action, _ = model.predict(obs, deterministic=False)
                 obs, reward, done, truncated = env.step(action)
 
@@ -76,14 +87,20 @@ def run_ai(user_started, user_end, user_reset, seed, name="ai"):
                         counter = counter + 1
                         continue
                     # Display endgame screen using Pygame
+                    end_time = pygame.time.get_ticks()
                     font = pygame.font.SysFont("Arial", 48)
+                    final_time = (end_time - starting_time) / 1000
                     text_surface = font.render(
-                        "{} WINS!".format(name), True, (255, 255, 255))
+                        "{} finished in {}s!".format(name, final_time),
+                        True,
+                        (255, 255, 255),
+                    )
                     # Clear the screen (fill with black, for example)
                     env.unwrapped.screen.fill((0, 0, 0))
                     # Center the text
                     text_rect = text_surface.get_rect(
-                        center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2))
+                        center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2)
+                    )
                     env.unwrapped.screen.blit(text_surface, text_rect)
                     pygame.display.flip()
                     endgame = True
@@ -99,7 +116,8 @@ def run_ai(user_started, user_end, user_reset, seed, name="ai"):
                 user_started.clear()
                 endgame = False
                 counter = 0
-            clock.tick(30)
+                time_set = False
+            clock.tick(50)
 
     except KeyboardInterrupt:
         pass
@@ -108,23 +126,27 @@ def run_ai(user_started, user_end, user_reset, seed, name="ai"):
         pygame.quit()
 
 
-def run_human(user_started, user_end, user_reset, seed, name="human"):
+def run_human(user_started, user_end, user_reset, seed, name="Human"):
     np.random.seed(seed)
     set_window_position(0, 0)
     # Configurazione ambiente umano
-    env = gym.make("CarRacing-v3", render_mode="human",
-                   max_episode_steps=10000, lap_complete_percent=0.95)
+    env = gym.make(
+        "CarRacing-v3",
+        render_mode="human",
+        max_episode_steps=10000,
+        lap_complete_percent=0.95,
+    )
     obs, info = env.reset(seed=seed)
     # obs, info = env.reset()
     env.unwrapped.screen = pygame.display.set_mode(
-        (WINDOW_WIDTH-150, SCREEN_HEIGHT),
-        pygame.HWSURFACE | pygame.DOUBLEBUF
+        (WINDOW_WIDTH - 150, SCREEN_HEIGHT), pygame.HWSURFACE | pygame.DOUBLEBUF
     )
     pygame.init()
     clock = pygame.time.Clock()
     first_action = True
     endgame = False
     counter = 0
+    starting_time = 0
     try:
         running = True
         while running:
@@ -139,14 +161,20 @@ def run_human(user_started, user_end, user_reset, seed, name="human"):
                     obs, info = env.reset(seed=seed)
                     continue
                 # Display endgame screen using Pygame
+                end_time = pygame.time.get_ticks()
+                final_time = (end_time - starting_time) / 1000
                 font = pygame.font.SysFont("Arial", 48)
                 text_surface = font.render(
-                    "{} WINS!".format(name), True, (255, 255, 255))
+                    "{} finished in {}s!".format(name, final_time),
+                    True,
+                    (255, 255, 255),
+                )
                 # Clear the screen (fill with black, for example)
                 env.unwrapped.screen.fill((0, 0, 0))
                 # Center the text
                 text_rect = text_surface.get_rect(
-                    center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2))
+                    center=(WINDOW_WIDTH // 2, SCREEN_HEIGHT // 2)
+                )
                 env.unwrapped.screen.blit(text_surface, text_rect)
                 pygame.display.flip()
                 endgame = True
@@ -155,9 +183,12 @@ def run_human(user_started, user_end, user_reset, seed, name="human"):
                 # Prima azione utente rilevata
                 user_started.set()
                 first_action = False
+                starting_time = pygame.time.get_ticks()
             # Gestione eventi
             for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+                if event.type == pygame.QUIT or (
+                    event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+                ):
                     running = False
                     user_end.set()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
@@ -167,7 +198,7 @@ def run_human(user_started, user_end, user_reset, seed, name="human"):
                     endgame = False
                     counter = 0
 
-            clock.tick(30)
+            clock.tick(50)
             if (done or truncated) and reward < 0:
                 obs, info = env.reset(seed=seed)
 
@@ -183,10 +214,24 @@ if __name__ == "__main__":
     user_started = Event()
     user_end = Event()
     user_reset = Event()
-    human_process = mp.Process(target=run_human, args=(
-        user_started, user_end, user_reset, seed,))
-    ai_process = mp.Process(target=run_ai, args=(
-        user_started, user_end, user_reset, seed,))
+    human_process = mp.Process(
+        target=run_human,
+        args=(
+            user_started,
+            user_end,
+            user_reset,
+            seed,
+        ),
+    )
+    ai_process = mp.Process(
+        target=run_ai,
+        args=(
+            user_started,
+            user_end,
+            user_reset,
+            seed,
+        ),
+    )
 
     human_process.start()
     ai_process.start()
